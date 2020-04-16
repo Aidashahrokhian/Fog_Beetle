@@ -1,0 +1,31 @@
+from serial import Serial
+from datetime import datetime
+import time
+
+fLog = open( "Cyl-2000-25ridge-040620.txt", 'a' ) #choose a file name
+
+uno = Serial( "/dev/ttyACM0", 9600, timeout=0.5 ) 
+
+
+while True:
+
+
+	try:
+		if uno.inWaiting() > 0: 
+			fLog.write( str( datetime.now() ).split('.')[0] )
+			reading = uno.readline()
+			#print readin
+			fLog.write( "," )
+			fLog.write( reading )
+		else:
+			time.sleep( 0.01 )
+	
+	except (KeyboardInterrupt):
+		while uno.inWaiting() > 0:
+			reading = uno.readline()	
+			fLog.write( reading )
+		break
+
+uno.close()
+fLog.flush()
+fLog.close()	
