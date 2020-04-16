@@ -1,0 +1,147 @@
+#include <Wire.h>
+#include <Adafruit_ADS1015.h>
+
+Adafruit_ADS1115 ads( 0x48 );
+
+const long freq = 40;
+const int gain = 2;
+const int d_t  = 16;
+const int button_pin = 2;
+const int fan_pin    = 10;
+const int fog_pin    = 6;
+
+const int pwr_pct = 40;    // wind speed ~2.0 m/s
+int duty_cyc  = 0;
+boolean runflag = false;
+boolean fogflag = false;
+unsigned long cnt = 0;
+unsigned int cyc_cnt = 0;
+
+
+void setup()
+{
+  Serial.begin( 9600 );  
+  delay( 100 );
+
+  pinMode( button_pin, INPUT_PULLUP );
+  pinMode( fan_pin, OUTPUT );
+  pinMode( fog_pin, OUTPUT );
+
+  digitalWrite( fan_pin, LOW );
+  digitalWrite( fog_pin, LOW );
+  
+  setPwmFrequency( fan_pin, 1024 );  // PWM freq. 30.5 Hz
+  delay( 100 );
+  
+  switch( gain )
+  {
+    case 1:  ads.setGain( GAIN_ONE );     break;
+    case 2:  ads.setGain( GAIN_TWO );     break;
+    case 4:  ads.setGain( GAIN_FOUR );    break;
+    case 8:  ads.setGain( GAIN_EIGHT );   break;
+    case 16: ads.setGain( GAIN_SIXTEEN ); break;
+    default: ads.setGain( GAIN_ONE );     break;
+  }
+  
+  ads.begin();  
+  delay( 100 );
+}
+
+
+void loop()
+{ 
+  if( digitalRead( button_pin ) == LOW )
+  {
+    if( runflag == false )
+    {
+      duty_cyc = map( pwr_pct, 0, 100, 24, 224 );
+      analogWrite( fan_pin, duty_cyc );
+      runflag = true;
+      cnt = 0;
+    }
+  }
+  else
+  {
+    if( runflag == true )
+    {
+      duty_cyc = 0;
+      digitalWrite( fan_pin, LOW );
+      digitalWrite( fog_pin, LOW );
+      runflag = false;
+      fogflag = false;
+    }
+  }
+  
+  if( runflag == true )
+  {
+    int reading = ads.readADC_Differential_0_1();
+    cnt += 1;
+    Serial.print( reading );
+    Serial.print(",");
+    Serial.print(fogflag);
+    Serial.print(",");
+    Serial.print(pwr_pct);
+    Serial.print(",");
+    Serial.print(cyc_cnt);
+    Serial.print(",");
+    Serial.println();
+
+    if( fogflag == false && cnt >= freq*60*20)
+    {
+      fogflag = true;
+      digitalWrite( fog_pin, HIGH );
+      cnt = 0;
+      cyc_cnt += 1;
+    }
+
+    if( fogflag == true && cnt >= freq*60*4)
+    {
+      fogflag = false;
+      digitalWrite( fog_pin, LOW );
+      cnt = 0;
+    }
+    
+  }
+  
+  delay( d_t );
+}
+
+
+void setPwmFrequency(int pin, int divisor) 
+{
+  byte mode;
+  
+  if( pin == 5 || pin == 6 || pin == 9 || pin == 10 ) 
+  {
+    switch(divisor) 
+    {
+      case 1: mode = 0x01; break;
+      case 8: mode = 0x02; break;
+      case 64: mode = 0x03; break;
+      case 256: mode = 0x04; break;
+      case 1024: mode = 0x05; break;
+      default: return;
+    }
+    
+    if( pin == 5 || pin == 6 ) 
+    { TCCR0B = TCCR0B & 0b11111000 | mode; } 
+    else 
+    { TCCR1B = TCCR1B & 0b11111000 | mode; }
+  } 
+
+  else if( pin == 3 || pin == 11 ) 
+  {
+    switch(divisor) 
+    {
+      case 1: mode = 0x01; break;
+      case 8: mode = 0x02; break;
+      case 32: mode = 0x03; break;
+      case 64: mode = 0x04; break;
+      case 128: mode = 0x05; break;
+      case 256: mode = 0x06; break;
+      case 1024: mode = 0x07; break;
+      default: return;
+    }
+    TCCR2B = TCCR2B & 0b11111000 | mode;
+  }
+}
