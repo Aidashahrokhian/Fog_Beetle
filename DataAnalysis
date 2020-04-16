@@ -1,0 +1,43 @@
+import numpy
+from numpy import *
+import pylab as pl
+from pylab import *
+
+f = open( "Sphere-Hydrophobic2.txt","r")	#enter the name of the file 
+content = f.readlines()
+lines = content
+x= len(lines)/200
+x= int(x)*200
+lines = lines[:x]
+f.close()
+
+cnt_to_grm = 1.9e-3
+
+data= []
+for line in lines:
+	data_all = line.split(',')
+	if data_all[2] == '1':
+		data.append(float(data_all[1]))
+		cyc_cnt= int(data_all[4])
+		
+		
+	else:
+		pass
+	
+
+cyc_cnt= int(cyc_cnt)
+a= numpy.array(data).reshape (int(cyc_cnt),len(data)/(int(cyc_cnt))) #separating the cycles
+
+
+
+time= numpy.arange(0,len(a[0])/40, 5) #data acquisition rate 40Hz 
+
+
+ImpactionRate= [] 
+
+for i in range(int(cyc_cnt)):
+	b=numpy.array(a[i]). reshape( len(a[i])/200,200)
+	ave=b.mean(axis=1) #averaging every 5s of data
+	m,s = polyfit(time, ave*cnt_to_grm, 1) #linear fit
+	ImpactionRate.append(m)
+	print m  #printing impaction rate of each cycle. To calculate the deposition efficiency divide this value by the amount of water directed toward the target projected area in file (W)
